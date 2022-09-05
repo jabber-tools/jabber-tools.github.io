@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["MatchConfidenceLevel","Represents the system’s confidence that this knowledge answer is a good match for this conversational query."]]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":[["recognizer","v1 STT API Speech-to-text recognizer module - v1 STT API."],["recognizer_beta","v1p1beta1 API Speech-to-text recognizer module - v1p1beta1 STT API."]]};

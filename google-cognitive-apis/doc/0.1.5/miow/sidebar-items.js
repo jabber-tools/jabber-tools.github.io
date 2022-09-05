@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":[["iocp","Bindings to IOCP, I/O Completion Ports"],["net","Extensions and types for the standard networking primitives."],["pipe","Interprocess Communication pipes"]],"struct":[["Overlapped","A wrapper around `OVERLAPPED` to provide “rustic” accessors and initializers."]]};

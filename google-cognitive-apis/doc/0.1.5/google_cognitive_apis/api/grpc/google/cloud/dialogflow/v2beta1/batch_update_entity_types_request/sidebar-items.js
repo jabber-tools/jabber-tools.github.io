@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["EntityTypeBatch","The source of the entity type batch."]]};

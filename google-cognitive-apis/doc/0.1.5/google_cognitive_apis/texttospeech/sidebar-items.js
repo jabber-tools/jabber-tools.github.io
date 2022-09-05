@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":[["synthesizer","Text-to-speech synthesizer module."]]};

@@ -1,0 +1,1506 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `C:\Users\adamb\.cargo\registry\src\github.com-1ecc6299db9ec823\mio-0.7.11\src\sys\windows\selector.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>selector.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../../normalize.css"><link rel="stylesheet" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../../ayu.css" disabled><link rel="stylesheet" href="../../../../dark.css" disabled><link rel="stylesheet" href="../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../storage.js"></script><script defer src="../../../../source-script.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../../mio/index.html"><div class="logo-container"><img class="rust-logo" src="../../../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../../../mio/index.html"><div class="logo-container"><img class="rust-logo" src="../../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../../mio/index.html"><img class="rust-logo" src="../../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
+<span id="705">705</span>
+<span id="706">706</span>
+<span id="707">707</span>
+<span id="708">708</span>
+<span id="709">709</span>
+<span id="710">710</span>
+<span id="711">711</span>
+<span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
+<span id="715">715</span>
+<span id="716">716</span>
+<span id="717">717</span>
+<span id="718">718</span>
+<span id="719">719</span>
+<span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+</pre><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::afd::{<span class="self">self</span>, Afd, AfdPollInfo};
+<span class="kw">use </span><span class="kw">super</span>::io_status_block::IoStatusBlock;
+<span class="kw">use </span><span class="kw">super</span>::Event;
+<span class="kw">use </span><span class="kw">crate</span>::sys::Events;
+
+<span class="macro">cfg_net! </span>{
+    <span class="kw">use </span><span class="kw">crate</span>::sys::event::{
+        ERROR_FLAGS, READABLE_FLAGS, READ_CLOSED_FLAGS, WRITABLE_FLAGS, WRITE_CLOSED_FLAGS,
+    };
+    <span class="kw">use </span><span class="kw">crate</span>::Interest;
+}
+
+<span class="kw">use </span>miow::iocp::{CompletionPort, CompletionStatus};
+<span class="kw">use </span>std::collections::VecDeque;
+<span class="kw">use </span>std::io;
+<span class="kw">use </span>std::marker::PhantomPinned;
+<span class="kw">use </span>std::os::windows::io::RawSocket;
+<span class="kw">use </span>std::pin::Pin;
+<span class="attribute">#[cfg(debug_assertions)]
+</span><span class="kw">use </span>std::sync::atomic::AtomicUsize;
+<span class="kw">use </span>std::sync::atomic::{AtomicBool, Ordering};
+<span class="kw">use </span>std::sync::{Arc, Mutex};
+<span class="kw">use </span>std::time::Duration;
+<span class="kw">use </span>winapi::shared::ntdef::NT_SUCCESS;
+<span class="kw">use </span>winapi::shared::ntdef::{HANDLE, PVOID};
+<span class="kw">use </span>winapi::shared::ntstatus::STATUS_CANCELLED;
+<span class="kw">use </span>winapi::shared::winerror::{ERROR_INVALID_HANDLE, ERROR_IO_PENDING, WAIT_TIMEOUT};
+<span class="kw">use </span>winapi::um::minwinbase::OVERLAPPED;
+
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">struct </span>AfdGroup {
+    cp: Arc&lt;CompletionPort&gt;,
+    afd_group: Mutex&lt;Vec&lt;Arc&lt;Afd&gt;&gt;&gt;,
+}
+
+<span class="kw">impl </span>AfdGroup {
+    <span class="kw">pub fn </span>new(cp: Arc&lt;CompletionPort&gt;) -&gt; AfdGroup {
+        AfdGroup {
+            afd_group: Mutex::new(Vec::new()),
+            cp,
+        }
+    }
+
+    <span class="kw">pub fn </span>release_unused_afd(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span><span class="kw-2">mut </span>afd_group = <span class="self">self</span>.afd_group.lock().unwrap();
+        afd_group.retain(|g| Arc::strong_count(<span class="kw-2">&amp;</span>g) &gt; <span class="number">1</span>);
+    }
+}
+
+<span class="macro">cfg_io_source! </span>{
+    <span class="kw">const </span>POLL_GROUP__MAX_GROUP_SIZE: usize = <span class="number">32</span>;
+
+    <span class="kw">impl </span>AfdGroup {
+        <span class="kw">pub fn </span>acquire(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; io::Result&lt;Arc&lt;Afd&gt;&gt; {
+            <span class="kw">let </span><span class="kw-2">mut </span>afd_group = <span class="self">self</span>.afd_group.lock().unwrap();
+            <span class="kw">if </span>afd_group.len() == <span class="number">0 </span>{
+                <span class="self">self</span>._alloc_afd_group(<span class="kw-2">&amp;mut </span>afd_group)<span class="question-mark">?</span>;
+            } <span class="kw">else </span>{
+                <span class="comment">// + 1 reference in Vec
+                </span><span class="kw">if </span>Arc::strong_count(afd_group.last().unwrap()) &gt;= POLL_GROUP__MAX_GROUP_SIZE + <span class="number">1 </span>{
+                    <span class="self">self</span>._alloc_afd_group(<span class="kw-2">&amp;mut </span>afd_group)<span class="question-mark">?</span>;
+                }
+            }
+
+            <span class="kw">match </span>afd_group.last() {
+                <span class="prelude-val">Some</span>(arc) =&gt; <span class="prelude-val">Ok</span>(arc.clone()),
+                <span class="prelude-val">None </span>=&gt; <span class="macro">unreachable!</span>(
+                    <span class="string">&quot;Cannot acquire afd, {:#?}, afd_group: {:#?}&quot;</span>,
+                    <span class="self">self</span>, afd_group
+                ),
+            }
+        }
+
+        <span class="kw">fn </span>_alloc_afd_group(<span class="kw-2">&amp;</span><span class="self">self</span>, afd_group: <span class="kw-2">&amp;mut </span>Vec&lt;Arc&lt;Afd&gt;&gt;) -&gt; io::Result&lt;()&gt; {
+            <span class="kw">let </span>afd = Afd::new(<span class="kw-2">&amp;</span><span class="self">self</span>.cp)<span class="question-mark">?</span>;
+            <span class="kw">let </span>arc = Arc::new(afd);
+            afd_group.push(arc);
+            <span class="prelude-val">Ok</span>(())
+        }
+    }
+}
+
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">enum </span>SockPollStatus {
+    Idle,
+    Pending,
+    Cancelled,
+}
+
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>SockState {
+    iosb: IoStatusBlock,
+    poll_info: AfdPollInfo,
+    afd: Arc&lt;Afd&gt;,
+
+    raw_socket: RawSocket,
+    base_socket: RawSocket,
+
+    user_evts: u32,
+    pending_evts: u32,
+
+    user_data: u64,
+
+    poll_status: SockPollStatus,
+    delete_pending: bool,
+
+    <span class="comment">// last raw os error
+    </span>error: <span class="prelude-ty">Option</span>&lt;i32&gt;,
+
+    pinned: PhantomPinned,
+}
+
+<span class="kw">impl </span>SockState {
+    <span class="kw">fn </span>update(<span class="kw-2">&amp;mut </span><span class="self">self</span>, self_arc: <span class="kw-2">&amp;</span>Pin&lt;Arc&lt;Mutex&lt;SockState&gt;&gt;&gt;) -&gt; io::Result&lt;()&gt; {
+        <span class="macro">assert!</span>(!<span class="self">self</span>.delete_pending);
+
+        <span class="comment">// make sure to reset previous error before a new update
+        </span><span class="self">self</span>.error = <span class="prelude-val">None</span>;
+
+        <span class="kw">if let </span>SockPollStatus::Pending = <span class="self">self</span>.poll_status {
+            <span class="kw">if </span>(<span class="self">self</span>.user_evts &amp; afd::KNOWN_EVENTS &amp; !<span class="self">self</span>.pending_evts) == <span class="number">0 </span>{
+                <span class="comment">/* All the events the user is interested in are already being monitored by
+                 * the pending poll operation. It might spuriously complete because of an
+                 * event that we&#39;re no longer interested in; when that happens we&#39;ll submit
+                 * a new poll operation with the updated event mask. */
+            </span>} <span class="kw">else </span>{
+                <span class="comment">/* A poll operation is already pending, but it&#39;s not monitoring for all the
+                 * events that the user is interested in. Therefore, cancel the pending
+                 * poll operation; when we receive it&#39;s completion package, a new poll
+                 * operation will be submitted with the correct event mask. */
+                </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.cancel() {
+                    <span class="self">self</span>.error = e.raw_os_error();
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(e);
+                }
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+            }
+        } <span class="kw">else if let </span>SockPollStatus::Cancelled = <span class="self">self</span>.poll_status {
+            <span class="comment">/* The poll operation has already been cancelled, we&#39;re still waiting for
+             * it to return. For now, there&#39;s nothing that needs to be done. */
+        </span>} <span class="kw">else if let </span>SockPollStatus::Idle = <span class="self">self</span>.poll_status {
+            <span class="comment">/* No poll operation is pending; start one. */
+            </span><span class="self">self</span>.poll_info.exclusive = <span class="number">0</span>;
+            <span class="self">self</span>.poll_info.number_of_handles = <span class="number">1</span>;
+            <span class="kw-2">*</span><span class="kw">unsafe </span>{ <span class="self">self</span>.poll_info.timeout.QuadPart_mut() } = std::i64::MAX;
+            <span class="self">self</span>.poll_info.handles[<span class="number">0</span>].handle = <span class="self">self</span>.base_socket <span class="kw">as </span>HANDLE;
+            <span class="self">self</span>.poll_info.handles[<span class="number">0</span>].status = <span class="number">0</span>;
+            <span class="self">self</span>.poll_info.handles[<span class="number">0</span>].events = <span class="self">self</span>.user_evts | afd::POLL_LOCAL_CLOSE;
+
+            <span class="comment">// Increase the ref count as the memory will be used by the kernel.
+            </span><span class="kw">let </span>overlapped_ptr = into_overlapped(self_arc.clone());
+
+            <span class="kw">let </span>result = <span class="kw">unsafe </span>{
+                <span class="self">self</span>.afd
+                    .poll(<span class="kw-2">&amp;mut </span><span class="self">self</span>.poll_info, <span class="kw-2">&amp;mut *</span><span class="self">self</span>.iosb, overlapped_ptr)
+            };
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = result {
+                <span class="kw">let </span>code = e.raw_os_error().unwrap();
+                <span class="kw">if </span>code == ERROR_IO_PENDING <span class="kw">as </span>i32 {
+                    <span class="comment">/* Overlapped poll operation in progress; this is expected. */
+                </span>} <span class="kw">else </span>{
+                    <span class="comment">// Since the operation failed it means the kernel won&#39;t be
+                    // using the memory any more.
+                    </span>drop(from_overlapped(overlapped_ptr <span class="kw">as </span><span class="kw-2">*mut </span><span class="kw">_</span>));
+                    <span class="kw">if </span>code == ERROR_INVALID_HANDLE <span class="kw">as </span>i32 {
+                        <span class="comment">/* Socket closed; it&#39;ll be dropped. */
+                        </span><span class="self">self</span>.mark_delete();
+                        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+                    } <span class="kw">else </span>{
+                        <span class="self">self</span>.error = e.raw_os_error();
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(e);
+                    }
+                }
+            }
+
+            <span class="self">self</span>.poll_status = SockPollStatus::Pending;
+            <span class="self">self</span>.pending_evts = <span class="self">self</span>.user_evts;
+        } <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">&quot;Invalid poll status during update, {:#?}&quot;</span>, <span class="self">self</span>)
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn </span>cancel(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; io::Result&lt;()&gt; {
+        <span class="kw">match </span><span class="self">self</span>.poll_status {
+            SockPollStatus::Pending =&gt; {}
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;Invalid poll status during cancel, {:#?}&quot;</span>, <span class="self">self</span>),
+        };
+        <span class="kw">unsafe </span>{
+            <span class="self">self</span>.afd.cancel(<span class="kw-2">&amp;mut *</span><span class="self">self</span>.iosb)<span class="question-mark">?</span>;
+        }
+        <span class="self">self</span>.poll_status = SockPollStatus::Cancelled;
+        <span class="self">self</span>.pending_evts = <span class="number">0</span>;
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="comment">// This is the function called from the overlapped using as Arc&lt;Mutex&lt;SockState&gt;&gt;. Watch out for reference counting.
+    </span><span class="kw">fn </span>feed_event(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Event&gt; {
+        <span class="self">self</span>.poll_status = SockPollStatus::Idle;
+        <span class="self">self</span>.pending_evts = <span class="number">0</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>afd_events = <span class="number">0</span>;
+        <span class="comment">// We use the status info in IO_STATUS_BLOCK to determine the socket poll status. It is unsafe to use a pointer of IO_STATUS_BLOCK.
+        </span><span class="kw">unsafe </span>{
+            <span class="kw">if </span><span class="self">self</span>.delete_pending {
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            } <span class="kw">else if </span><span class="self">self</span>.iosb.u.Status == STATUS_CANCELLED {
+                <span class="comment">/* The poll request was cancelled by CancelIoEx. */
+            </span>} <span class="kw">else if </span>!NT_SUCCESS(<span class="self">self</span>.iosb.u.Status) {
+                <span class="comment">/* The overlapped request itself failed in an unexpected way. */
+                </span>afd_events = afd::POLL_CONNECT_FAIL;
+            } <span class="kw">else if </span><span class="self">self</span>.poll_info.number_of_handles &lt; <span class="number">1 </span>{
+                <span class="comment">/* This poll operation succeeded but didn&#39;t report any socket events. */
+            </span>} <span class="kw">else if </span><span class="self">self</span>.poll_info.handles[<span class="number">0</span>].events &amp; afd::POLL_LOCAL_CLOSE != <span class="number">0 </span>{
+                <span class="comment">/* The poll operation reported that the socket was closed. */
+                </span><span class="self">self</span>.mark_delete();
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            } <span class="kw">else </span>{
+                afd_events = <span class="self">self</span>.poll_info.handles[<span class="number">0</span>].events;
+            }
+        }
+
+        afd_events &amp;= <span class="self">self</span>.user_evts;
+
+        <span class="kw">if </span>afd_events == <span class="number">0 </span>{
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="comment">// In mio, we have to simulate Edge-triggered behavior to match API usage.
+        // The strategy here is to intercept all read/write from user that could cause WouldBlock usage,
+        // then reregister the socket to reset the interests.
+        </span><span class="self">self</span>.user_evts &amp;= !afd_events;
+
+        <span class="prelude-val">Some</span>(Event {
+            data: <span class="self">self</span>.user_data,
+            flags: afd_events,
+        })
+    }
+
+    <span class="kw">pub fn </span>is_pending_deletion(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.delete_pending
+    }
+
+    <span class="kw">pub fn </span>mark_delete(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">if </span>!<span class="self">self</span>.delete_pending {
+            <span class="kw">if let </span>SockPollStatus::Pending = <span class="self">self</span>.poll_status {
+                drop(<span class="self">self</span>.cancel());
+            }
+
+            <span class="self">self</span>.delete_pending = <span class="bool-val">true</span>;
+        }
+    }
+
+    <span class="kw">fn </span>has_error(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.error.is_some()
+    }
+}
+
+<span class="macro">cfg_io_source! </span>{
+    <span class="kw">impl </span>SockState {
+        <span class="kw">fn </span>new(raw_socket: RawSocket, afd: Arc&lt;Afd&gt;) -&gt; io::Result&lt;SockState&gt; {
+            <span class="prelude-val">Ok</span>(SockState {
+                iosb: IoStatusBlock::zeroed(),
+                poll_info: AfdPollInfo::zeroed(),
+                afd,
+                raw_socket,
+                base_socket: get_base_socket(raw_socket)<span class="question-mark">?</span>,
+                user_evts: <span class="number">0</span>,
+                pending_evts: <span class="number">0</span>,
+                user_data: <span class="number">0</span>,
+                poll_status: SockPollStatus::Idle,
+                delete_pending: <span class="bool-val">false</span>,
+                error: <span class="prelude-val">None</span>,
+                pinned: PhantomPinned,
+            })
+        }
+
+        <span class="doccomment">/// True if need to be added on update queue, false otherwise.
+        </span><span class="kw">fn </span>set_event(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ev: Event) -&gt; bool {
+            <span class="comment">/* afd::POLL_CONNECT_FAIL and afd::POLL_ABORT are always reported, even when not requested by the caller. */
+            </span><span class="kw">let </span>events = ev.flags | afd::POLL_CONNECT_FAIL | afd::POLL_ABORT;
+
+            <span class="self">self</span>.user_evts = events;
+            <span class="self">self</span>.user_data = ev.data;
+
+            (events &amp; !<span class="self">self</span>.pending_evts) != <span class="number">0
+        </span>}
+    }
+}
+
+<span class="kw">impl </span>Drop <span class="kw">for </span>SockState {
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.mark_delete();
+    }
+}
+
+<span class="doccomment">/// Converts the pointer to a `SockState` into a raw pointer.
+/// To revert see `from_overlapped`.
+</span><span class="kw">fn </span>into_overlapped(sock_state: Pin&lt;Arc&lt;Mutex&lt;SockState&gt;&gt;&gt;) -&gt; PVOID {
+    <span class="kw">let </span>overlapped_ptr: <span class="kw-2">*const </span>Mutex&lt;SockState&gt; =
+        <span class="kw">unsafe </span>{ Arc::into_raw(Pin::into_inner_unchecked(sock_state)) };
+    overlapped_ptr <span class="kw">as </span><span class="kw-2">*mut </span><span class="kw">_
+</span>}
+
+<span class="doccomment">/// Convert a raw overlapped pointer into a reference to `SockState`.
+/// Reverts `into_overlapped`.
+</span><span class="kw">fn </span>from_overlapped(ptr: <span class="kw-2">*mut </span>OVERLAPPED) -&gt; Pin&lt;Arc&lt;Mutex&lt;SockState&gt;&gt;&gt; {
+    <span class="kw">let </span>sock_ptr: <span class="kw-2">*const </span>Mutex&lt;SockState&gt; = ptr <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_</span>;
+    <span class="kw">unsafe </span>{ Pin::new_unchecked(Arc::from_raw(sock_ptr)) }
+}
+
+<span class="doccomment">/// Each Selector has a globally unique(ish) ID associated with it. This ID
+/// gets tracked by `TcpStream`, `TcpListener`, etc... when they are first
+/// registered with the `Selector`. If a type that is previously associated with
+/// a `Selector` attempts to register itself with a different `Selector`, the
+/// operation will return with an error. This matches windows behavior.
+</span><span class="attribute">#[cfg(debug_assertions)]
+</span><span class="kw">static </span>NEXT_ID: AtomicUsize = AtomicUsize::new(<span class="number">0</span>);
+
+<span class="doccomment">/// Windows implementaion of `sys::Selector`
+///
+/// Edge-triggered event notification is simulated by resetting internal event flag of each socket state `SockState`
+/// and setting all events back by intercepting all requests that could cause `io::ErrorKind::WouldBlock` happening.
+///
+/// This selector is currently only support socket due to `Afd` driver is winsock2 specific.
+</span><span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>Selector {
+    <span class="attribute">#[cfg(debug_assertions)]
+    </span>id: usize,
+    <span class="kw">pub</span>(<span class="kw">super</span>) inner: Arc&lt;SelectorInner&gt;,
+    <span class="attribute">#[cfg(debug_assertions)]
+    </span>has_waker: AtomicBool,
+}
+
+<span class="kw">impl </span>Selector {
+    <span class="kw">pub fn </span>new() -&gt; io::Result&lt;Selector&gt; {
+        SelectorInner::new().map(|inner| {
+            <span class="attribute">#[cfg(debug_assertions)]
+            </span><span class="kw">let </span>id = NEXT_ID.fetch_add(<span class="number">1</span>, Ordering::Relaxed) + <span class="number">1</span>;
+            Selector {
+                <span class="attribute">#[cfg(debug_assertions)]
+                </span>id,
+                inner: Arc::new(inner),
+                <span class="attribute">#[cfg(debug_assertions)]
+                </span>has_waker: AtomicBool::new(<span class="bool-val">false</span>),
+            }
+        })
+    }
+
+    <span class="kw">pub fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; io::Result&lt;Selector&gt; {
+        <span class="prelude-val">Ok</span>(Selector {
+            <span class="attribute">#[cfg(debug_assertions)]
+            </span>id: <span class="self">self</span>.id,
+            inner: Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.inner),
+            <span class="attribute">#[cfg(debug_assertions)]
+            </span>has_waker: AtomicBool::new(<span class="self">self</span>.has_waker.load(Ordering::Acquire)),
+        })
+    }
+
+    <span class="doccomment">/// # Safety
+    ///
+    /// This requires a mutable reference to self because only a single thread
+    /// can poll IOCP at a time.
+    </span><span class="kw">pub fn </span>select(<span class="kw-2">&amp;mut </span><span class="self">self</span>, events: <span class="kw-2">&amp;mut </span>Events, timeout: <span class="prelude-ty">Option</span>&lt;Duration&gt;) -&gt; io::Result&lt;()&gt; {
+        <span class="self">self</span>.inner.select(events, timeout)
+    }
+
+    <span class="attribute">#[cfg(debug_assertions)]
+    </span><span class="kw">pub fn </span>register_waker(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.has_waker.swap(<span class="bool-val">true</span>, Ordering::AcqRel)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>clone_port(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;CompletionPort&gt; {
+        <span class="self">self</span>.inner.cp.clone()
+    }
+
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;os-ext&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>same_port(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>Arc&lt;CompletionPort&gt;) -&gt; bool {
+        Arc::ptr_eq(<span class="kw-2">&amp;</span><span class="self">self</span>.inner.cp, other)
+    }
+}
+
+<span class="macro">cfg_io_source! </span>{
+    <span class="kw">use </span><span class="kw">super</span>::InternalState;
+    <span class="kw">use </span><span class="kw">crate</span>::Token;
+
+    <span class="kw">impl </span>Selector {
+        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>register(
+            <span class="kw-2">&amp;</span><span class="self">self</span>,
+            socket: RawSocket,
+            token: Token,
+            interests: Interest,
+        ) -&gt; io::Result&lt;InternalState&gt; {
+            SelectorInner::register(<span class="kw-2">&amp;</span><span class="self">self</span>.inner, socket, token, interests)
+        }
+
+        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reregister(
+            <span class="kw-2">&amp;</span><span class="self">self</span>,
+            state: Pin&lt;Arc&lt;Mutex&lt;SockState&gt;&gt;&gt;,
+            token: Token,
+            interests: Interest,
+        ) -&gt; io::Result&lt;()&gt; {
+            <span class="self">self</span>.inner.reregister(state, token, interests)
+        }
+
+        <span class="attribute">#[cfg(debug_assertions)]
+        </span><span class="kw">pub fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+            <span class="self">self</span>.id
+        }
+    }
+}
+
+<span class="attribute">#[derive(Debug)]
+</span><span class="kw">pub struct </span>SelectorInner {
+    <span class="kw">pub</span>(<span class="kw">super</span>) cp: Arc&lt;CompletionPort&gt;,
+    update_queue: Mutex&lt;VecDeque&lt;Pin&lt;Arc&lt;Mutex&lt;SockState&gt;&gt;&gt;&gt;&gt;,
+    afd_group: AfdGroup,
+    is_polling: AtomicBool,
+}
+
+<span class="comment">// We have ensured thread safety by introducing lock manually.
+</span><span class="kw">unsafe impl </span>Sync <span class="kw">for </span>SelectorInner {}
+
+<span class="kw">impl </span>SelectorInner {
+    <span class="kw">pub fn </span>new() -&gt; io::Result&lt;SelectorInner&gt; {
+        CompletionPort::new(<span class="number">0</span>).map(|cp| {
+            <span class="kw">let </span>cp = Arc::new(cp);
+            <span class="kw">let </span>cp_afd = Arc::clone(<span class="kw-2">&amp;</span>cp);
+
+            SelectorInner {
+                cp,
+                update_queue: Mutex::new(VecDeque::new()),
+                afd_group: AfdGroup::new(cp_afd),
+                is_polling: AtomicBool::new(<span class="bool-val">false</span>),
+            }
+        })
+    }
+
+    <span class="doccomment">/// # Safety
+    ///
+    /// May only be calling via `Selector::select`.
+    </span><span class="kw">pub fn </span>select(<span class="kw-2">&amp;</span><span class="self">self</span>, events: <span class="kw-2">&amp;mut </span>Events, timeout: <span class="prelude-ty">Option</span>&lt;Duration&gt;) -&gt; io::Result&lt;()&gt; {
+        events.clear();
+
+        <span class="kw">if </span>timeout.is_none() {
+            <span class="kw">loop </span>{
+                <span class="kw">let </span>len = <span class="self">self</span>.select2(<span class="kw-2">&amp;mut </span>events.statuses, <span class="kw-2">&amp;mut </span>events.events, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+                <span class="kw">if </span>len == <span class="number">0 </span>{
+                    <span class="kw">continue</span>;
+                }
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+            }
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.select2(<span class="kw-2">&amp;mut </span>events.statuses, <span class="kw-2">&amp;mut </span>events.events, timeout)<span class="question-mark">?</span>;
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+        }
+    }
+
+    <span class="kw">pub fn </span>select2(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        statuses: <span class="kw-2">&amp;mut </span>[CompletionStatus],
+        events: <span class="kw-2">&amp;mut </span>Vec&lt;Event&gt;,
+        timeout: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
+    ) -&gt; io::Result&lt;usize&gt; {
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.is_polling.swap(<span class="bool-val">true</span>, Ordering::AcqRel), <span class="bool-val">false</span>);
+
+        <span class="kw">unsafe </span>{ <span class="self">self</span>.update_sockets_events() }<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>result = <span class="self">self</span>.cp.get_many(statuses, timeout);
+
+        <span class="self">self</span>.is_polling.store(<span class="bool-val">false</span>, Ordering::Relaxed);
+
+        <span class="kw">match </span>result {
+            <span class="prelude-val">Ok</span>(iocp_events) =&gt; <span class="prelude-val">Ok</span>(<span class="kw">unsafe </span>{ <span class="self">self</span>.feed_events(events, iocp_events) }),
+            <span class="prelude-val">Err</span>(<span class="kw-2">ref </span>e) <span class="kw">if </span>e.raw_os_error() == <span class="prelude-val">Some</span>(WAIT_TIMEOUT <span class="kw">as </span>i32) =&gt; <span class="prelude-val">Ok</span>(<span class="number">0</span>),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(e),
+        }
+    }
+
+    <span class="kw">unsafe fn </span>update_sockets_events(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; io::Result&lt;()&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>update_queue = <span class="self">self</span>.update_queue.lock().unwrap();
+        <span class="kw">for </span>sock <span class="kw">in </span>update_queue.iter_mut() {
+            <span class="kw">let </span><span class="kw-2">mut </span>sock_internal = sock.lock().unwrap();
+            <span class="kw">if </span>!sock_internal.is_pending_deletion() {
+                sock_internal.update(<span class="kw-2">&amp;</span>sock)<span class="question-mark">?</span>;
+            }
+        }
+
+        <span class="comment">// remove all sock which do not have error, they have afd op pending
+        </span>update_queue.retain(|sock| sock.lock().unwrap().has_error());
+
+        <span class="self">self</span>.afd_group.release_unused_afd();
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="comment">// It returns processed count of iocp_events rather than the events itself.
+    </span><span class="kw">unsafe fn </span>feed_events(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        events: <span class="kw-2">&amp;mut </span>Vec&lt;Event&gt;,
+        iocp_events: <span class="kw-2">&amp;</span>[CompletionStatus],
+    ) -&gt; usize {
+        <span class="kw">let </span><span class="kw-2">mut </span>n = <span class="number">0</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>update_queue = <span class="self">self</span>.update_queue.lock().unwrap();
+        <span class="kw">for </span>iocp_event <span class="kw">in </span>iocp_events.iter() {
+            <span class="kw">if </span>iocp_event.overlapped().is_null() {
+                events.push(Event::from_completion_status(iocp_event));
+                n += <span class="number">1</span>;
+                <span class="kw">continue</span>;
+            } <span class="kw">else if </span>iocp_event.token() % <span class="number">2 </span>== <span class="number">1 </span>{
+                <span class="comment">// Handle is a named pipe. This could be extended to be any non-AFD event.
+                </span><span class="kw">let </span>callback = (<span class="kw-2">*</span>(iocp_event.overlapped() <span class="kw">as </span><span class="kw-2">*mut </span><span class="kw">super</span>::Overlapped)).callback;
+
+                <span class="kw">let </span>len = events.len();
+                callback(iocp_event.entry(), <span class="prelude-val">Some</span>(events));
+                n += events.len() - len;
+                <span class="kw">continue</span>;
+            }
+
+            <span class="kw">let </span>sock_state = from_overlapped(iocp_event.overlapped());
+            <span class="kw">let </span><span class="kw-2">mut </span>sock_guard = sock_state.lock().unwrap();
+            <span class="kw">match </span>sock_guard.feed_event() {
+                <span class="prelude-val">Some</span>(e) =&gt; {
+                    events.push(e);
+                    n += <span class="number">1</span>;
+                }
+                <span class="prelude-val">None </span>=&gt; {}
+            }
+
+            <span class="kw">if </span>!sock_guard.is_pending_deletion() {
+                update_queue.push_back(sock_state.clone());
+            }
+        }
+        <span class="self">self</span>.afd_group.release_unused_afd();
+        n
+    }
+}
+
+<span class="macro">cfg_io_source! </span>{
+    <span class="kw">use </span>std::mem::size_of;
+    <span class="kw">use </span>std::ptr::null_mut;
+    <span class="kw">use </span>winapi::um::mswsock;
+    <span class="kw">use </span>winapi::um::winsock2::WSAGetLastError;
+    <span class="kw">use </span>winapi::um::winsock2::{WSAIoctl, SOCKET_ERROR};
+
+    <span class="kw">impl </span>SelectorInner {
+        <span class="kw">fn </span>register(
+            this: <span class="kw-2">&amp;</span>Arc&lt;<span class="self">Self</span>&gt;,
+            socket: RawSocket,
+            token: Token,
+            interests: Interest,
+        ) -&gt; io::Result&lt;InternalState&gt; {
+            <span class="kw">let </span>flags = interests_to_afd_flags(interests);
+
+            <span class="kw">let </span>sock = {
+                <span class="kw">let </span>sock = this._alloc_sock_for_rawsocket(socket)<span class="question-mark">?</span>;
+                <span class="kw">let </span>event = Event {
+                    flags,
+                    data: token.<span class="number">0 </span><span class="kw">as </span>u64,
+                };
+                sock.lock().unwrap().set_event(event);
+                sock
+            };
+
+            <span class="kw">let </span>state = InternalState {
+                selector: this.clone(),
+                token,
+                interests,
+                sock_state: sock.clone(),
+            };
+
+            this.queue_state(sock);
+            <span class="kw">unsafe </span>{ this.update_sockets_events_if_polling()<span class="question-mark">? </span>};
+
+            <span class="prelude-val">Ok</span>(state)
+        }
+
+        <span class="comment">// Directly accessed in `IoSourceState::do_io`.
+        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reregister(
+            <span class="kw-2">&amp;</span><span class="self">self</span>,
+            state: Pin&lt;Arc&lt;Mutex&lt;SockState&gt;&gt;&gt;,
+            token: Token,
+            interests: Interest,
+        ) -&gt; io::Result&lt;()&gt; {
+            {
+                <span class="kw">let </span>event = Event {
+                    flags: interests_to_afd_flags(interests),
+                    data: token.<span class="number">0 </span><span class="kw">as </span>u64,
+                };
+
+                state.lock().unwrap().set_event(event);
+            }
+
+            <span class="comment">// FIXME: a sock which has_error true should not be re-added to
+            // the update queue because it&#39;s already there.
+            </span><span class="self">self</span>.queue_state(state);
+            <span class="kw">unsafe </span>{ <span class="self">self</span>.update_sockets_events_if_polling() }
+        }
+
+        <span class="doccomment">/// This function is called by register() and reregister() to start an
+        /// IOCTL_AFD_POLL operation corresponding to the registered events, but
+        /// only if necessary.
+        ///
+        /// Since it is not possible to modify or synchronously cancel an AFD_POLL
+        /// operation, and there can be only one active AFD_POLL operation per
+        /// (socket, completion port) pair at any time, it is expensive to change
+        /// a socket&#39;s event registration after it has been submitted to the kernel.
+        ///
+        /// Therefore, if no other threads are polling when interest in a socket
+        /// event is (re)registered, the socket is added to the &#39;update queue&#39;, but
+        /// the actual syscall to start the IOCTL_AFD_POLL operation is deferred
+        /// until just before the GetQueuedCompletionStatusEx() syscall is made.
+        ///
+        /// However, when another thread is already blocked on
+        /// GetQueuedCompletionStatusEx() we tell the kernel about the registered
+        /// socket event(s) immediately.
+        </span><span class="kw">unsafe fn </span>update_sockets_events_if_polling(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; io::Result&lt;()&gt; {
+            <span class="kw">if </span><span class="self">self</span>.is_polling.load(Ordering::Acquire) {
+                <span class="self">self</span>.update_sockets_events()
+            } <span class="kw">else </span>{
+                <span class="prelude-val">Ok</span>(())
+            }
+        }
+
+        <span class="kw">fn </span>queue_state(<span class="kw-2">&amp;</span><span class="self">self</span>, sock_state: Pin&lt;Arc&lt;Mutex&lt;SockState&gt;&gt;&gt;) {
+            <span class="kw">let </span><span class="kw-2">mut </span>update_queue = <span class="self">self</span>.update_queue.lock().unwrap();
+            update_queue.push_back(sock_state);
+        }
+
+        <span class="kw">fn </span>_alloc_sock_for_rawsocket(
+            <span class="kw-2">&amp;</span><span class="self">self</span>,
+            raw_socket: RawSocket,
+        ) -&gt; io::Result&lt;Pin&lt;Arc&lt;Mutex&lt;SockState&gt;&gt;&gt;&gt; {
+            <span class="kw">let </span>afd = <span class="self">self</span>.afd_group.acquire()<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(Arc::pin(Mutex::new(SockState::new(raw_socket, afd)<span class="question-mark">?</span>)))
+        }
+    }
+
+    <span class="kw">fn </span>try_get_base_socket(raw_socket: RawSocket, ioctl: u32) -&gt; <span class="prelude-ty">Result</span>&lt;RawSocket, i32&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>base_socket: RawSocket = <span class="number">0</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>bytes: u32 = <span class="number">0</span>;
+        <span class="kw">unsafe </span>{
+            <span class="kw">if </span>WSAIoctl(
+                raw_socket <span class="kw">as </span>usize,
+                ioctl,
+                null_mut(),
+                <span class="number">0</span>,
+                <span class="kw-2">&amp;mut </span>base_socket <span class="kw">as </span><span class="kw-2">*mut </span><span class="kw">_ as </span>PVOID,
+                size_of::&lt;RawSocket&gt;() <span class="kw">as </span>u32,
+                <span class="kw-2">&amp;mut </span>bytes,
+                null_mut(),
+                <span class="prelude-val">None</span>,
+            ) != SOCKET_ERROR
+            {
+                <span class="prelude-val">Ok</span>(base_socket)
+            } <span class="kw">else </span>{
+                <span class="prelude-val">Err</span>(WSAGetLastError())
+            }
+        }
+    }
+
+    <span class="kw">fn </span>get_base_socket(raw_socket: RawSocket) -&gt; io::Result&lt;RawSocket&gt; {
+        <span class="kw">let </span>res = try_get_base_socket(raw_socket, mswsock::SIO_BASE_HANDLE);
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(base_socket) = res {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(base_socket);
+        }
+
+        <span class="comment">// The `SIO_BASE_HANDLE` should not be intercepted by LSPs, therefore
+        // it should not fail as long as `raw_socket` is a valid socket. See
+        // https://docs.microsoft.com/en-us/windows/win32/winsock/winsock-ioctls.
+        // However, at least one known LSP deliberately breaks it, so we try
+        // some alternative IOCTLs, starting with the most appropriate one.
+        </span><span class="kw">for </span><span class="kw-2">&amp;</span>ioctl <span class="kw">in </span><span class="kw-2">&amp;</span>[
+            mswsock::SIO_BSP_HANDLE_SELECT,
+            mswsock::SIO_BSP_HANDLE_POLL,
+            mswsock::SIO_BSP_HANDLE,
+        ] {
+            <span class="kw">if let </span><span class="prelude-val">Ok</span>(base_socket) = try_get_base_socket(raw_socket, ioctl) {
+                <span class="comment">// Since we know now that we&#39;re dealing with an LSP (otherwise
+                // SIO_BASE_HANDLE would&#39;t have failed), only return any result
+                // when it is different from the original `raw_socket`.
+                </span><span class="kw">if </span>base_socket != raw_socket {
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(base_socket);
+                }
+            }
+        }
+
+        <span class="comment">// If the alternative IOCTLs also failed, return the original error.
+        </span><span class="kw">let </span>os_error = res.unwrap_err();
+        <span class="kw">let </span>err = io::Error::from_raw_os_error(os_error);
+        <span class="prelude-val">Err</span>(err)
+    }
+}
+
+<span class="kw">impl </span>Drop <span class="kw">for </span>SelectorInner {
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>events_num: usize;
+            <span class="kw">let </span><span class="kw-2">mut </span>statuses: [CompletionStatus; <span class="number">1024</span>] = [CompletionStatus::zero(); <span class="number">1024</span>];
+
+            <span class="kw">let </span>result = <span class="self">self
+                </span>.cp
+                .get_many(<span class="kw-2">&amp;mut </span>statuses, <span class="prelude-val">Some</span>(std::time::Duration::from_millis(<span class="number">0</span>)));
+            <span class="kw">match </span>result {
+                <span class="prelude-val">Ok</span>(iocp_events) =&gt; {
+                    events_num = iocp_events.iter().len();
+                    <span class="kw">for </span>iocp_event <span class="kw">in </span>iocp_events.iter() {
+                        <span class="kw">if </span>iocp_event.overlapped().is_null() {
+                            <span class="comment">// Custom event
+                        </span>} <span class="kw">else if </span>iocp_event.token() % <span class="number">2 </span>== <span class="number">1 </span>{
+                            <span class="comment">// Named pipe, dispatch the event so it can release resources
+                            </span><span class="kw">let </span>callback = <span class="kw">unsafe </span>{
+                                (<span class="kw-2">*</span>(iocp_event.overlapped() <span class="kw">as </span><span class="kw-2">*mut </span><span class="kw">super</span>::Overlapped)).callback
+                            };
+
+                            callback(iocp_event.entry(), <span class="prelude-val">None</span>);
+                        } <span class="kw">else </span>{
+                            <span class="comment">// drain sock state to release memory of Arc reference
+                            </span><span class="kw">let </span>_sock_state = from_overlapped(iocp_event.overlapped());
+                        }
+                    }
+                }
+
+                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+                    <span class="kw">break</span>;
+                }
+            }
+
+            <span class="kw">if </span>events_num == <span class="number">0 </span>{
+                <span class="comment">// continue looping until all completion statuses have been drained
+                </span><span class="kw">break</span>;
+            }
+        }
+
+        <span class="self">self</span>.afd_group.release_unused_afd();
+    }
+}
+
+<span class="macro">cfg_net! </span>{
+    <span class="kw">fn </span>interests_to_afd_flags(interests: Interest) -&gt; u32 {
+        <span class="kw">let </span><span class="kw-2">mut </span>flags = <span class="number">0</span>;
+
+        <span class="kw">if </span>interests.is_readable() {
+            flags |= READABLE_FLAGS | READ_CLOSED_FLAGS | ERROR_FLAGS;
+        }
+
+        <span class="kw">if </span>interests.is_writable() {
+            flags |= WRITABLE_FLAGS | WRITE_CLOSED_FLAGS | ERROR_FLAGS;
+        }
+
+        flags
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="mio" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (9243168fa 2022-08-31)" ></div></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["InteractionType","Use case categories that the audio recognition request can be described by."],["MicrophoneDistance","Enumerates the types of capture settings describing an audio file."],["OriginalMediaType","The original media the speech was recorded on."],["RecordingDeviceType","The type of device the speech was recorded with."]]};

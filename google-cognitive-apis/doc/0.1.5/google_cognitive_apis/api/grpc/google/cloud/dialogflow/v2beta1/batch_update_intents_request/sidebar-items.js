@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["IntentBatch","Required. The source of the intent batch."]]};

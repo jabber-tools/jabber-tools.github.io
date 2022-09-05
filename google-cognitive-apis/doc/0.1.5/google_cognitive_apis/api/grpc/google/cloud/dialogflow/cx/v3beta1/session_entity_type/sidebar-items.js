@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["EntityOverrideMode","The types of modifications for the session entity type."]]};

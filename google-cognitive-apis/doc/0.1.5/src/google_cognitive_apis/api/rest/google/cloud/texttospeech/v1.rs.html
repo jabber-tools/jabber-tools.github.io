@@ -1,0 +1,138 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src\api\rest\google\cloud\texttospeech\v1.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>v1.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../../../../../normalize.css"><link rel="stylesheet" href="../../../../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../../../../../ayu.css" disabled><link rel="stylesheet" href="../../../../../../../dark.css" disabled><link rel="stylesheet" href="../../../../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../../../../storage.js"></script><script defer src="../../../../../../../source-script.js"></script><script defer src="../../../../../../../source-files.js"></script><script defer src="../../../../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../../../../../google_cognitive_apis/index.html"><div class="logo-container"><img class="rust-logo" src="../../../../../../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../../../../../../google_cognitive_apis/index.html"><div class="logo-container"><img class="rust-logo" src="../../../../../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../../../../../google_cognitive_apis/index.html"><img class="rust-logo" src="../../../../../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+</pre><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::api::grpc::google::cloud::texttospeech::v1::{
+    AudioConfig <span class="kw">as </span>GrpcAudioConfig, VoiceSelectionParams <span class="kw">as </span>GrpcVoiceSelectionParams,
+};
+<span class="kw">use </span>serde::Deserialize;
+
+<span class="attribute">#[derive(Debug, Deserialize)]
+</span><span class="kw">pub struct </span>VoiceSelectionParams {
+    <span class="attribute">#[serde(rename = <span class="string">&quot;languageCode&quot;</span>)]
+    </span><span class="kw">pub </span>language_code: String,
+
+    <span class="kw">pub </span>name: String,
+
+    <span class="attribute">#[serde(rename = <span class="string">&quot;ssmlGender&quot;</span>)]
+    </span><span class="kw">pub </span>ssml_gender: i32,
+}
+<span class="kw">impl </span>From&lt;GrpcVoiceSelectionParams&gt; <span class="kw">for </span>VoiceSelectionParams {
+    <span class="kw">fn </span>from(grpc_vsp: GrpcVoiceSelectionParams) -&gt; <span class="self">Self </span>{
+        VoiceSelectionParams {
+            language_code: grpc_vsp.language_code,
+            name: grpc_vsp.name,
+            ssml_gender: grpc_vsp.ssml_gender,
+        }
+    }
+}
+
+<span class="comment">// TBD: use this for VoiceSelectionParams.ssml_gender
+// need to find real i32 values, google doc does not specify them
+</span><span class="attribute">#[derive(Debug, Deserialize)]
+#[allow(non_camel_case_types)]
+</span><span class="kw">pub enum </span>SsmlVoiceGender {
+    SSML_VOICE_GENDER_UNSPECIFIED = <span class="number">0</span>,
+    MALE = <span class="number">1</span>,
+    FEMALE = <span class="number">2</span>,
+    NEUTRAL = <span class="number">3</span>,
+}
+
+<span class="attribute">#[derive(Debug, Deserialize)]
+</span><span class="kw">pub struct </span>AudioConfig {
+    <span class="attribute">#[serde(rename = <span class="string">&quot;audioEncoding&quot;</span>)]
+    </span><span class="kw">pub </span>audio_encoding: i32,
+
+    <span class="attribute">#[serde(rename = <span class="string">&quot;speakingRate&quot;</span>)]
+    </span><span class="kw">pub </span>speaking_rate: f64,
+
+    <span class="kw">pub </span>pitch: f64,
+
+    <span class="attribute">#[serde(rename = <span class="string">&quot;volumeGainDb&quot;</span>)]
+    </span><span class="kw">pub </span>volume_gain_db: f64,
+
+    <span class="attribute">#[serde(rename = <span class="string">&quot;sampleRateHertz&quot;</span>)]
+    </span><span class="kw">pub </span>sample_rate_hertz: i32,
+
+    <span class="attribute">#[serde(rename = <span class="string">&quot;effectsProfileId&quot;</span>)]
+    </span><span class="kw">pub </span>effects_profile_id: Vec&lt;String&gt;,
+}
+
+<span class="kw">impl </span>From&lt;GrpcAudioConfig&gt; <span class="kw">for </span>AudioConfig {
+    <span class="kw">fn </span>from(grpc_audio_cfg: GrpcAudioConfig) -&gt; <span class="self">Self </span>{
+        AudioConfig {
+            audio_encoding: grpc_audio_cfg.audio_encoding,
+            speaking_rate: grpc_audio_cfg.speaking_rate,
+            pitch: grpc_audio_cfg.pitch,
+            volume_gain_db: grpc_audio_cfg.volume_gain_db,
+            sample_rate_hertz: grpc_audio_cfg.sample_rate_hertz,
+            effects_profile_id: grpc_audio_cfg.effects_profile_id,
+        }
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../../../../" data-current-crate="google_cognitive_apis" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (9243168fa 2022-08-31)" ></div></body></html>

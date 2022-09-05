@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["HorizontalAlignment","Text alignments within a cell."]]};

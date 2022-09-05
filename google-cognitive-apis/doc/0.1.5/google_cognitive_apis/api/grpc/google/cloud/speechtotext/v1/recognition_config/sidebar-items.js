@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["AudioEncoding","The encoding of the audio data sent in the request."]]};

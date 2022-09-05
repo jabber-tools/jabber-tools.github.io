@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Item","An item in the list."]]};
