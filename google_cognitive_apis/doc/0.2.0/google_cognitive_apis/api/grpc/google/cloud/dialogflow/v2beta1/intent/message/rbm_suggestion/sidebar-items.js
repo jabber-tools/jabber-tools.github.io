@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["Suggestion","Predefined suggested response or action for user to choose"]]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Button","Contains information about a button."]]};

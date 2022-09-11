@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["Source","Required. The source to be synthesized."]]};

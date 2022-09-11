@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["MatchType","Type of a Match."]]};

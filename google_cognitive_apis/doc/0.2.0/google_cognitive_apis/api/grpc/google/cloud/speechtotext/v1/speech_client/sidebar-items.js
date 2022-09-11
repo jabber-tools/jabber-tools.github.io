@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["SpeechClient","Service that implements Google Cloud Speech API."]]};

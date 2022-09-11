@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["Type","Represents different types of training phrases."]],"struct":[["Part","Represents a part of a training phrase."]]};

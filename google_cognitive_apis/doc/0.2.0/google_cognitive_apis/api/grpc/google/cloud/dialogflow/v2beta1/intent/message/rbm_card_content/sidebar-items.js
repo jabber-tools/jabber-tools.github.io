@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":[["rbm_media","Nested message and enum types in `RbmMedia`."]],"struct":[["RbmMedia","Rich Business Messaging (RBM) Media displayed in Cards The following media-types are currently supported:"]]};

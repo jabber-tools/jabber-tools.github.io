@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":[["dialogflow",""],["speechtotext","Contains speech-to-text recognizers (v1 and v1p1beta1)."],["texttospeech",""]]};

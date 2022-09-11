@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["SessionsClient","Google Dialogflow sessions client. Used for streaming detect intent API. Is NOT cloneable!"]]};

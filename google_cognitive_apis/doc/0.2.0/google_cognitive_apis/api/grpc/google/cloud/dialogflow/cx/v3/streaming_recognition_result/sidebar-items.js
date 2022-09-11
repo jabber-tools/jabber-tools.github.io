@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["MessageType","Type of the response message."]]};

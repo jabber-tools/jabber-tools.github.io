@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Instrumented","A future that has been instrumented with a `tracing` span."],["WithDispatch","A future that has been instrumented with a `tracing` subscriber."]],"trait":[["Instrument","Attaches spans to a `std::future::Future`."],["WithSubscriber","Extension trait allowing futures to be instrumented with a `tracing` `Subscriber`."]]};

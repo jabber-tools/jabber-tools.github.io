@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["OpenUriAction","Opens the given URI."]]};

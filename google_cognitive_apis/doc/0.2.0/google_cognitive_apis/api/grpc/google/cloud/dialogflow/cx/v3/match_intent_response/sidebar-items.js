@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["Query","The original conversational query."]]};
