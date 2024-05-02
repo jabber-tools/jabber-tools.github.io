@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CancellationErrorCode","CancellationReason","OutputFormat","ProfanityOption","PropertyId","ResultReason","ServicePropertyChannel","SpeechSynthesisBoundaryType","SpeechSynthesisOutputFormat","StreamStatus","SynthesisVoiceType"],"struct":["PropertyCollection"]};
